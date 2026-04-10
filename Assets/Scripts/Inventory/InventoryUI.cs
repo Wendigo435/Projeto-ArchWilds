@@ -1,16 +1,15 @@
 using UnityEngine;
 using Mirror;
 using System.Collections.Generic;
-using TMPro;
 
 public class InventoryUI : MonoBehaviour
 {
     [Header("Painéis")]
     public GameObject inventoryPanel;
 
-    [Header("Slots")]
-    public List<InventorySlot> inventorySlots = new List<InventorySlot>();
+    [Header("Slots — arrasta em ordem 0 a 24")]
     public List<InventorySlot> hotbarSlots = new List<InventorySlot>();
+    public List<InventorySlot> inventorySlots = new List<InventorySlot>();
 
     [Header("Database")]
     public ItemDatabase database;
@@ -27,6 +26,14 @@ public class InventoryUI : MonoBehaviour
     public void BindPlayer(PlayerInventory player)
     {
         localPlayer = player;
+
+        // Configura índices dos slots
+        for (int i = 0; i < hotbarSlots.Count; i++)
+            if (hotbarSlots[i] != null) hotbarSlots[i].myIndex = i;
+
+        for (int i = 0; i < inventorySlots.Count; i++)
+            if (inventorySlots[i] != null) inventorySlots[i].myIndex = i + hotbarSlots.Count;
+
         RefreshUI(player.inventory);
     }
 
@@ -39,45 +46,41 @@ public class InventoryUI : MonoBehaviour
 
         if (!isOpen)
         {
-            foreach (var slot in inventorySlots)
-                if (slot != null) slot.ResetIconPosition();
-            foreach (var slot in hotbarSlots)
-                if (slot != null) slot.ResetIconPosition();
+            foreach (var slot in hotbarSlots) if (slot != null) slot.ResetIconPosition();
+            foreach (var slot in inventorySlots) if (slot != null) slot.ResetIconPosition();
         }
     }
 
     public void RefreshUI(SyncList<Item> inventory)
     {
-        Debug.Log($"RefreshUI chamado! inventory.Count: {inventory.Count} database null: {database == null}");
-
-        // Atualiza hotbar (primeiros 9 slots)
         for (int i = 0; i < hotbarSlots.Count; i++)
         {
             if (hotbarSlots[i] == null) continue;
-            hotbarSlots[i].myIndex = i;
-            hotbarSlots[i].ClearSlot();
-
-            if (i < inventory.Count)
+            Item item = inventory[i];
+            if (item.IsEmpty)
             {
-                ItemData data = database.GetItemByID(inventory[i].itemID);
-                if (data != null)
-                    hotbarSlots[i].UpdateSlot(data.itemName, inventory[i].amount, data.icon);
+                hotbarSlots[i].ClearSlot();
+            }
+            else
+            {
+                ItemData data = database.GetItemByID(item.itemID);
+                if (data != null) hotbarSlots[i].UpdateSlot(data.itemName, item.amount, data.icon);
             }
         }
 
-        // Atualiza inventário (slots após a hotbar)
         for (int i = 0; i < inventorySlots.Count; i++)
         {
             if (inventorySlots[i] == null) continue;
-            int inventoryIndex = i + hotbarSlots.Count;
-            inventorySlots[i].myIndex = inventoryIndex;
-            inventorySlots[i].ClearSlot();
-
-            if (inventoryIndex < inventory.Count)
+            int invIndex = i + hotbarSlots.Count;
+            Item item = inventory[invIndex];
+            if (item.IsEmpty)
             {
-                ItemData data = database.GetItemByID(inventory[inventoryIndex].itemID);
-                if (data != null)
-                    inventorySlots[i].UpdateSlot(data.itemName, inventory[inventoryIndex].amount, data.icon);
+                inventorySlots[i].ClearSlot();
+            }
+            else
+            {
+                ItemData data = database.GetItemByID(item.itemID);
+                if (data != null) inventorySlots[i].UpdateSlot(data.itemName, item.amount, data.icon);
             }
         }
     }
@@ -88,9 +91,9 @@ public class InventoryUI : MonoBehaviour
             localPlayer.CmdSwapItems(fromIndex, toIndex);
     }
 
-    public void DropItem(int slotIndex)
+    public void DropItem(int index)
     {
         if (localPlayer != null)
-            localPlayer.CmdRemoveItem(slotIndex);
+            localPlayer.CmdDropItem(index);
     }
 }

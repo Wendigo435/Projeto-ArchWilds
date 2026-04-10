@@ -2,21 +2,23 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using UnityEngine.EventSystems;
+using System.Collections.Generic;
 
 public class InventorySlot : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
 {
     [Header("Componentes")]
     public Image icon;
     public TMP_Text amountText;
+    public InventoryUI uiParent;
+    private Transform originalParent;
 
     [HideInInspector] public int myIndex;
-    private InventoryUI uiParent;
+
     private CanvasGroup canvasGroup;
     private Vector3 originalIconLocalPosition;
 
     void Awake()
     {
-        uiParent = GetComponentInParent<InventoryUI>();
         canvasGroup = GetComponent<CanvasGroup>();
         if (canvasGroup == null) canvasGroup = gameObject.AddComponent<CanvasGroup>();
     }
@@ -46,6 +48,8 @@ public class InventorySlot : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
     {
         if (icon.sprite == null || !icon.enabled) return;
         originalIconLocalPosition = icon.transform.localPosition;
+        originalParent = icon.transform.parent;
+        icon.transform.SetParent(GetComponentInParent<Canvas>().rootCanvas.transform);
         icon.transform.SetAsLastSibling();
         canvasGroup.alpha = 0.6f;
         canvasGroup.blocksRaycasts = false;
@@ -61,18 +65,27 @@ public class InventorySlot : MonoBehaviour, IBeginDragHandler, IDragHandler, IEn
     {
         canvasGroup.alpha = 1f;
         canvasGroup.blocksRaycasts = true;
+        icon.transform.SetParent(originalParent);
         icon.transform.localPosition = originalIconLocalPosition;
 
         if (icon.sprite == null || !icon.enabled) return;
 
-        GameObject hit = eventData.pointerCurrentRaycast.gameObject;
-        if (hit != null && hit.TryGetComponent(out InventorySlot targetSlot))
+        List<RaycastResult> results = new List<RaycastResult>();
+        EventSystem.current.RaycastAll(eventData, results);
+
+        InventorySlot targetSlot = null;
+        foreach (var result in results)
         {
+            if (result.gameObject.TryGetComponent(out InventorySlot slot) && slot != this)
+            {
+                targetSlot = slot;
+                break;
+            }
+        }
+
+        if (targetSlot != null)
             uiParent.RequestSwap(myIndex, targetSlot.myIndex);
-        }
-        else if (hit == null)
-        {
+        else if (results.Count == 0)
             uiParent.DropItem(myIndex);
-        }
     }
 }

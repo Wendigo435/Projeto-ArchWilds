@@ -50,10 +50,10 @@ public class PlayerCamera : NetworkBehaviour
             rotY += Input.GetAxis("Mouse X") * Sensitivity;
             rotX -= Input.GetAxis("Mouse Y") * Sensitivity;
             rotX = Mathf.Clamp(rotX, isFPS ? FPSMinY : -40f, isFPS ? FPSMaxY : 70f);
-        }
 
-        if (isFPS) HandleFPS();
-        else HandleTPS();
+            if (isFPS) HandleFPS();
+            else HandleTPS();
+        }
     }
 
     private void FixedUpdate()

@@ -4,17 +4,26 @@ using Mirror;
 public class PlayerInventory : NetworkBehaviour
 {
     [Header("Configurações")]
+    public int inventorySize = 24; // 9 hotbar + 27 inventário
     public float PickDistance = 3f;
     public string itemTag = "Item";
     public KeyCode InvKey = KeyCode.Tab;
     public KeyCode PickKey = KeyCode.E;
 
     [Header("Componentes")]
-    public readonly SyncList<Item> inventory = new SyncList<Item>();
     public ItemDatabase database;
+
+    public readonly SyncList<Item> inventory = new SyncList<Item>();
 
     private InventoryUI UI;
     private Camera Cam;
+
+    public override void OnStartServer()
+    {
+        // Inicializa inventário com slots vazios
+        for (int i = 0; i < inventorySize; i++)
+            inventory.Add(Item.Empty);
+    }
 
     public override void OnStartLocalPlayer()
     {
@@ -46,7 +55,6 @@ public class PlayerInventory : NetworkBehaviour
 
     void OnInventoryUpdated(SyncList<Item>.Operation op, int index, Item oldItem, Item newItem)
     {
-        Debug.Log($"Inventario atualizado! UI null: {UI == null}");
         if (isLocalPlayer && UI != null) UI.RefreshUI(inventory);
     }
 
@@ -74,7 +82,7 @@ public class PlayerInventory : NetworkBehaviour
         Item newItem = pickup.GetNetworkItem();
         ItemData dataSO = database.GetItemByID(newItem.itemID);
 
-        bool found = false;
+        // Tenta stackar se possível
         if (dataSO != null && dataSO.stackable)
         {
             for (int i = 0; i < inventory.Count; i++)
@@ -84,29 +92,42 @@ public class PlayerInventory : NetworkBehaviour
                     Item temp = inventory[i];
                     temp.amount += newItem.amount;
                     inventory[i] = temp;
-                    found = true;
-                    break;
+                    NetworkServer.Destroy(itemObject);
+                    return;
                 }
             }
         }
 
-        if (!found) inventory.Add(newItem);
-        NetworkServer.Destroy(itemObject);
+        // Acha primeiro slot vazio
+        for (int i = 0; i < inventory.Count; i++)
+        {
+            if (inventory[i].IsEmpty)
+            {
+                inventory[i] = newItem;
+                NetworkServer.Destroy(itemObject);
+                return;
+            }
+        }
+
+        Debug.Log("Inventário cheio!");
     }
 
     [Command]
     public void CmdSwapItems(int indexA, int indexB)
     {
-        if (indexA < 0 || indexA >= inventory.Count || indexB < 0 || indexB >= inventory.Count) return;
+        if (indexA < 0 || indexA >= inventory.Count) return;
+        if (indexB < 0 || indexB >= inventory.Count) return;
+
         Item temp = inventory[indexA];
         inventory[indexA] = inventory[indexB];
         inventory[indexB] = temp;
     }
 
     [Command]
-    public void CmdRemoveItem(int index)
+    public void CmdDropItem(int index)
     {
         if (index < 0 || index >= inventory.Count) return;
+        if (inventory[index].IsEmpty) return;
 
         Item networkItem = inventory[index];
         ItemData dataSO = database.GetItemByID(networkItem.itemID);
@@ -122,6 +143,6 @@ public class PlayerInventory : NetworkBehaviour
             NetworkServer.Spawn(dropped);
         }
 
-        inventory.RemoveAt(index);
+        inventory[index] = Item.Empty;
     }
 }

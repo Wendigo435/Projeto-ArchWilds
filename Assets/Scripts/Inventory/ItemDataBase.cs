@@ -8,7 +8,7 @@ public class ItemDatabase : ScriptableObject
 
     public ItemData GetItemByID(int id)
     {
-        if (allItems == null) return null;
+        if (id == -1 || allItems == null) return null;
         return allItems.Find(x => x.itemID == id);
     }
 }

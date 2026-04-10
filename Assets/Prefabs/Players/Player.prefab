@@ -270,6 +270,7 @@ MonoBehaviour:
   syncDirection: 0
   syncMode: 0
   syncInterval: 0
+  inventorySize: 35
   PickDistance: 3
   itemTag: Item
   InvKey: 9

@@ -28,7 +28,12 @@ public class PlayerMovement : NetworkBehaviour
     void FixedUpdate()
     {
         if (!isLocalPlayer) return;
-        if (InventoryUI.isOpen) return;
+        if (InventoryUI.isOpen)
+        {
+            rig.linearVelocity = new Vector3(0, rig.linearVelocity.y, 0);
+            return;
+        }
+
         MoveX = Input.GetAxis("Horizontal");
         MoveY = Input.GetAxis("Vertical");
 
